@@ -1,0 +1,21 @@
+{
+  "name": "typeracer-app",
+  "version": "1.0.0",
+  "description": "Multiplayer typeracer application with real-time racing",
+  "main": "server/server.js",
+  "scripts": {
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd client && npm run build",
+    "install-server": "cd server && npm install",
+    "install-client": "cd client && npm install",
+    "install-all": "npm install && npm run install-server && npm run install-client"
+  },
+  "keywords": ["typeracer", "mern", "socket.io", "redux"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

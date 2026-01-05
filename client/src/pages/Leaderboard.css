@@ -1,0 +1,162 @@
+.leaderboard-page {
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+.leaderboard-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.leaderboard-header h1 {
+  font-size: 48px;
+  color: white;
+  margin-bottom: 16px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.leaderboard-header p {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.leaderboard-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.tab-button {
+  padding: 12px 32px;
+  background: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #333;
+}
+
+.tab-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tab-button.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.leaderboard-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  overflow-x: auto;
+}
+
+.leaderboard-table {
+  width: 100%;
+}
+
+.leaderboard-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+  padding: 16px;
+  text-align: left;
+}
+
+.leaderboard-table th {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: sticky;
+  top: 0;
+}
+
+.leaderboard-table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background 0.3s ease;
+}
+
+.leaderboard-table tbody tr:hover {
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.leaderboard-table tbody tr.top-1 {
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.leaderboard-table tbody tr.top-2 {
+  background: rgba(192, 192, 192, 0.1);
+}
+
+.leaderboard-table tbody tr.top-3 {
+  background: rgba(205, 127, 50, 0.1);
+}
+
+.rank-cell {
+  font-weight: 700;
+  font-size: 20px;
+  text-align: center;
+  min-width: 60px;
+}
+
+.username-cell {
+  font-weight: 600;
+  color: #333;
+  min-width: 150px;
+}
+
+.highlight-cell {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 18px;
+}
+
+.loading,
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 18px;
+}
+
+@media (max-width: 768px) {
+  .leaderboard-header h1 {
+    font-size: 32px;
+  }
+
+  .leaderboard-tabs {
+    gap: 8px;
+  }
+
+  .tab-button {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  .leaderboard-table th,
+  .leaderboard-table td {
+    padding: 12px 8px;
+    font-size: 14px;
+  }
+
+  .rank-cell {
+    font-size: 16px;
+    min-width: 50px;
+  }
+
+  .username-cell {
+    min-width: 100px;
+  }
+}
