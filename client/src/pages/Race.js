@@ -471,6 +471,10 @@ const Race = () => {
   };
 
   const handleNewRace = () => {
+    // First leave the current race if any
+    if (roomId) {
+      socketService.leaveRace(roomId);
+    }
     dispatch(resetRace());
     setTypedText('');
     setErrors(0);
@@ -480,8 +484,13 @@ const Race = () => {
     setDisconnectedPlayer(null);
     setReconnectedPlayer(null);
     setPlayerLeftInfo(null);
+    setTrafficLight(null);
     localStorage.removeItem('activeRaceRoom');
-    handleFindMatch();
+    
+    // Small delay to ensure server processes the leave before joining new queue
+    setTimeout(() => {
+      handleFindMatch();
+    }, 100);
   };
 
   const handleLeaveRace = () => {

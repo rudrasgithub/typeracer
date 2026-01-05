@@ -540,22 +540,24 @@ io.on('connection', (socket) => {
 
     broadcastOnlineStats();
 
-    // Matchmaking logic
-    if (waitingPlayers.length === 1) {
-      if (matchmakingTimer) {
-        clearTimeout(matchmakingTimer);
-      }
-      
-      matchmakingTimer = setTimeout(() => {
-        createMatches();
-        matchmakingTimer = null;
-      }, MATCHMAKING_BUFFER);
-    } else if (waitingPlayers.length >= MAX_PLAYERS_PER_ROOM) {
+    // Matchmaking logic - start immediately when 2+ players are waiting
+    if (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
+      // Clear any existing timer and start match immediately
       if (matchmakingTimer) {
         clearTimeout(matchmakingTimer);
         matchmakingTimer = null;
       }
       createMatches();
+    } else if (waitingPlayers.length === 1) {
+      // First player - set a buffer timer in case more players join
+      if (matchmakingTimer) {
+        clearTimeout(matchmakingTimer);
+      }
+      
+      matchmakingTimer = setTimeout(() => {
+        // If still only 1 player after buffer, they'll need to wait for another
+        matchmakingTimer = null;
+      }, MATCHMAKING_BUFFER);
     }
   });
 
