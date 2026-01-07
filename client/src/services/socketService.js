@@ -300,6 +300,12 @@ class SocketService {
     }
   }
 
+  onRaceCountdownCancelled(callback) {
+    if (this.socket) {
+      this.socket.on('raceCountdownCancelled', callback);
+    }
+  }
+
   // Remove listeners
   off(event) {
     if (this.socket) {

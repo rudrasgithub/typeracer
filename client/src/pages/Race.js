@@ -228,9 +228,17 @@ const Race = () => {
     socketService.onPlayerRemovedTimeout((data) => {
       setPlayerLeftInfo({
         username: data.username,
+        remainingPlayers: data.remainingPlayers || 'unknown',
         reason: 'timeout'
       });
       setTimeout(() => setPlayerLeftInfo(null), 3000);
+    });
+
+    socketService.onRaceCountdownCancelled((data) => {
+      // Race cancelled during countdown
+      localStorage.removeItem('activeRaceRoom');
+      dispatch(resetRace());
+      alert(data.message || 'Race was cancelled');
     });
 
     socketService.onReconnectSuccess((data) => {
@@ -243,6 +251,18 @@ const Race = () => {
       
       if (data.status === 'racing') {
         dispatch(startRace());
+        // Restore user's progress
+        if (data.userProgress !== undefined) {
+          dispatch(updateProgress({
+            progress: data.userProgress,
+            wpm: data.userWPM || 0,
+            accuracy: data.userAccuracy || 100
+          }));
+          
+          // Calculate typed text from progress
+          const chars = Math.floor((data.userProgress / 100) * data.text.length);
+          setTypedText(data.text.substring(0, chars));
+        }
         if (inputRef.current) {
           inputRef.current.focus();
         }
@@ -308,6 +328,7 @@ const Race = () => {
       socketService.off('playerReconnected');
       socketService.off('playerLeft');
       socketService.off('playerRemovedTimeout');
+      socketService.off('raceCountdownCancelled');
       socketService.off('raceChatMessage');
       socketService.off('alreadyInRace');
       socketService.off('alreadyWaiting');

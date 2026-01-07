@@ -77,11 +77,11 @@ const countdownIntervals = new Map(); // Track countdown intervals per room
 let matchmakingTimer = null;
 
 // Constants for edge case handling
-const RECONNECTION_GRACE_PERIOD = 30000; // 30 seconds to reconnect
+const RECONNECTION_GRACE_PERIOD = 10000; // 10 seconds to reconnect
 const ROOM_CLEANUP_DELAY = 5000; // 5 seconds before cleaning up empty rooms
 const MIN_PLAYERS_TO_START = 2;
 const MAX_PLAYERS_PER_ROOM = 4;
-const MATCHMAKING_BUFFER = 10000; // 10 seconds matchmaking buffer
+const MATCHMAKING_BUFFER = 5000; // 5 seconds matchmaking buffer
 const RACE_TIMEOUT = 300000; // 5 minutes max race duration
 
 // Helper: Safe emit to a socket
@@ -399,7 +399,13 @@ io.on('connection', (socket) => {
   const createMatches = () => {
     while (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
       const roomId = `race_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const playersToMatch = Math.min(MAX_PLAYERS_PER_ROOM, waitingPlayers.length);
+      
+      // Take up to MAX_PLAYERS_PER_ROOM, but prioritize filling room efficiently
+      // If we have 4+, take 4. If 2-3, take all.
+      const playersToMatch = waitingPlayers.length >= MAX_PLAYERS_PER_ROOM 
+        ? MAX_PLAYERS_PER_ROOM 
+        : waitingPlayers.length;
+      
       const players = waitingPlayers.splice(0, playersToMatch);
 
       // Verify all players are still connected
@@ -414,9 +420,22 @@ io.on('connection', (socket) => {
         });
         continue;
       }
+      
+      // Enforce MAX_PLAYERS limit strictly
+      const finalPlayers = connectedPlayers.slice(0, MAX_PLAYERS_PER_ROOM);
+      
+      // Put back excess players if any
+      if (connectedPlayers.length > MAX_PLAYERS_PER_ROOM) {
+        const excessPlayers = connectedPlayers.slice(MAX_PLAYERS_PER_ROOM);
+        excessPlayers.forEach(p => {
+          if (!isPlayerInWaitingQueue(p.userId)) {
+            waitingPlayers.unshift(p);
+          }
+        });
+      }
 
       // Update all matched players status to racing
-      connectedPlayers.forEach(p => {
+      finalPlayers.forEach(p => {
         const playerUser = onlineUsers.get(p.socketId);
         if (playerUser) {
           playerUser.status = 'racing';
@@ -436,7 +455,7 @@ io.on('connection', (socket) => {
 
       activeRooms.set(roomId, {
         roomId,
-        players: connectedPlayers.map(p => ({
+        players: finalPlayers.map(p => ({
           ...p,
           progress: 0,
           wpm: 0,
@@ -453,7 +472,7 @@ io.on('connection', (socket) => {
       });
 
       // Join all players to the room
-      connectedPlayers.forEach(player => {
+      finalPlayers.forEach(player => {
         const playerSocket = io.sockets.sockets.get(player.socketId);
         if (playerSocket) {
           playerSocket.join(roomId);
@@ -465,7 +484,7 @@ io.on('connection', (socket) => {
       // Notify all players
       io.to(roomId).emit('raceReady', {
         roomId,
-        players: connectedPlayers.map(p => ({ 
+        players: finalPlayers.map(p => ({ 
           socketId: p.socketId, 
           username: p.username,
           userId: p.userId 
@@ -557,25 +576,26 @@ io.on('connection', (socket) => {
 
     broadcastOnlineStats();
 
-    // Matchmaking logic - start immediately when 2+ players are waiting
-    if (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
-      // Clear any existing timer and start match immediately
+    // Matchmaking logic with smart buffering
+    if (waitingPlayers.length >= MAX_PLAYERS_PER_ROOM) {
+      // If we have 4+ players, start immediately
       if (matchmakingTimer) {
         clearTimeout(matchmakingTimer);
         matchmakingTimer = null;
       }
       createMatches();
-    } else if (waitingPlayers.length === 1) {
-      // First player - set a buffer timer in case more players join
-      if (matchmakingTimer) {
-        clearTimeout(matchmakingTimer);
+    } else if (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
+      // If we have 2-3 players, wait a bit for a 4th, then start
+      if (!matchmakingTimer) {
+        matchmakingTimer = setTimeout(() => {
+          if (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
+            createMatches();
+          }
+          matchmakingTimer = null;
+        }, MATCHMAKING_BUFFER);
       }
-      
-      matchmakingTimer = setTimeout(() => {
-        // If still only 1 player after buffer, they'll need to wait for another
-        matchmakingTimer = null;
-      }, MATCHMAKING_BUFFER);
     }
+    // If only 1 player, wait for more (no timer needed)
   });
 
   // Reconnect to room
@@ -595,6 +615,13 @@ io.on('connection', (socket) => {
       return;
     }
     
+    // Verify this player was actually disconnected
+    const disconnectedData = disconnectedPlayers.get(userId);
+    if (!disconnectedData || disconnectedData.roomId !== roomId) {
+      socket.emit('reconnectFailed', { message: 'No active disconnection record found' });
+      return;
+    }
+    
     // Find the player in the room
     const playerIndex = room.players.findIndex(p => p.userId === userId);
     
@@ -603,9 +630,17 @@ io.on('connection', (socket) => {
       return;
     }
     
-    // Update player's socket ID
+    // Update player's socket ID and restore state
     room.players[playerIndex].socketId = socket.id;
     room.players[playerIndex].isConnected = true;
+    
+    // Restore progress from disconnection if race was ongoing
+    if (room.status === 'racing' && disconnectedData) {
+      room.players[playerIndex].progress = disconnectedData.progress || room.players[playerIndex].progress;
+      room.players[playerIndex].wpm = disconnectedData.wpm || room.players[playerIndex].wpm;
+      room.players[playerIndex].accuracy = disconnectedData.accuracy || room.players[playerIndex].accuracy;
+    }
+    
     activeRooms.set(roomId, room);
     
     // Remove from disconnected players
@@ -630,20 +665,39 @@ io.on('connection', (socket) => {
       players: room.players.map(p => ({
         socketId: p.socketId,
         username: p.username,
+        userId: p.userId,
         progress: p.progress,
         wpm: p.wpm,
         accuracy: p.accuracy,
-        finished: p.finished
+        finished: p.finished,
+        isConnected: p.isConnected
       })),
       text: room.text,
       status: room.status,
-      startTime: room.startTime
+      startTime: room.startTime,
+      userProgress: room.players[playerIndex].progress,
+      userWPM: room.players[playerIndex].wpm,
+      userAccuracy: room.players[playerIndex].accuracy
     });
     
     // Notify other players
     socket.to(roomId).emit('playerReconnected', {
       username,
+      userId,
       message: `${username} has reconnected`
+    });
+    
+    // Broadcast updated progress to all
+    io.to(roomId).emit('progressUpdate', {
+      players: room.players.map(p => ({
+        socketId: p.socketId,
+        username: p.username,
+        progress: p.progress,
+        wpm: p.wpm,
+        accuracy: p.accuracy,
+        finished: p.finished,
+        isConnected: isSocketConnected(p.socketId)
+      }))
     });
     
     broadcastOnlineStats();
@@ -829,6 +883,7 @@ io.on('connection', (socket) => {
           
           io.to(roomId).emit('playerDisconnected', {
             username: player.username,
+            userId: player.userId,
             willReconnect: true,
             gracePeriod: RECONNECTION_GRACE_PERIOD / 1000
           });
@@ -838,15 +893,19 @@ io.on('connection', (socket) => {
             const currentRoom = activeRooms.get(roomId);
             const stillDisconnected = disconnectedPlayers.get(player.userId);
             
-            if (stillDisconnected && currentRoom) {
+            // Only remove if: room exists, player still disconnected, and player still in room
+            if (stillDisconnected && currentRoom && stillDisconnected.roomId === roomId) {
               const pIndex = currentRoom.players.findIndex(p => p.userId === player.userId);
               if (pIndex !== -1 && !isSocketConnected(currentRoom.players[pIndex].socketId)) {
-                // Player didn't reconnect, remove them
+                // Player didn't reconnect within grace period, remove them
+                const removedPlayer = currentRoom.players[pIndex];
                 currentRoom.players.splice(pIndex, 1);
                 disconnectedPlayers.delete(player.userId);
                 
                 io.to(roomId).emit('playerRemovedTimeout', {
-                  username: player.username
+                  username: player.username,
+                  userId: player.userId,
+                  remainingPlayers: currentRoom.players.length
                 });
                 
                 if (currentRoom.players.length === 0) {
@@ -854,7 +913,41 @@ io.on('connection', (socket) => {
                   activeRooms.delete(roomId);
                 } else {
                   activeRooms.set(roomId, currentRoom);
-                  handleSinglePlayerLeft(roomId);
+                  
+                  // Handle race state based on remaining players
+                  if (room.status === 'racing') {
+                    handleSinglePlayerLeft(roomId);
+                  } else if (room.status === 'countdown') {
+                    // During countdown, check if we still have enough players
+                    const connectedInCountdown = currentRoom.players.filter(p => isSocketConnected(p.socketId));
+                    if (connectedInCountdown.length < MIN_PLAYERS_TO_START) {
+                      // Not enough players, cancel countdown
+                      clearRoomCountdown(roomId);
+                      io.to(roomId).emit('raceCountdownCancelled', {
+                        reason: 'Not enough players',
+                        message: 'Race cancelled - insufficient players'
+                      });
+                      
+                      // Return remaining players to waiting queue
+                      connectedInCountdown.forEach(p => {
+                        if (!isPlayerInWaitingQueue(p.userId)) {
+                          waitingPlayers.push({
+                            socketId: p.socketId,
+                            username: p.username,
+                            userId: p.userId,
+                            joinedAt: Date.now()
+                          });
+                          const playerUser = onlineUsers.get(p.socketId);
+                          if (playerUser) {
+                            playerUser.status = 'waiting';
+                            onlineUsers.set(p.socketId, playerUser);
+                          }
+                        }
+                      });
+                      
+                      activeRooms.delete(roomId);
+                    }
+                  }
                 }
                 
                 broadcastOnlineStats();
