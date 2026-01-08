@@ -54,6 +54,12 @@
   font-size: 40px;
   font-weight: 700;
   color: #333;
+  margin-bottom: 8px;
+}
+
+.profile-email {
+  font-size: 16px;
+  color: #666;
   margin-bottom: 16px;
 }
 
@@ -194,8 +200,53 @@
     padding: 12px 8px;
     font-size: 14px;
   }
+}
 
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-top: 1px solid #eee;
+}
+
+.pagination-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  font-size: 14px;
+  color: #666;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
   .profile-actions {
     flex-direction: column;
+  }
+  
+  .pagination {
+    flex-direction: column;
+    gap: 12px;
   }
 }

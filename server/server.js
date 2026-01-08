@@ -188,29 +188,22 @@ const handleSinglePlayerLeft = (roomId) => {
 
   const connectedPlayers = room.players.filter(p => isSocketConnected(p.socketId));
   
+  // Check if any player has already finished
+  const finishedPlayers = room.players.filter(p => p.finished);
+  
   if (connectedPlayers.length === 1 && room.status === 'racing') {
-    // Give the remaining player a short grace period to wait for reconnections
-    setTimeout(() => {
-      const currentRoom = activeRooms.get(roomId);
-      if (!currentRoom) return;
-      
-      const stillConnected = currentRoom.players.filter(p => isSocketConnected(p.socketId));
-      if (stillConnected.length === 1 && currentRoom.status === 'racing') {
-        // Auto-finish the remaining player as winner if not finished
-        const winner = stillConnected[0];
-        if (!winner.finished) {
-          winner.finished = true;
-          winner.position = 1;
-          io.to(roomId).emit('playerFinished', {
-            username: winner.username,
-            position: 1,
-            wpm: winner.wpm || 0,
-            accuracy: winner.accuracy || 100
-          });
-        }
+    // If someone already finished, end the race normally
+    if (finishedPlayers.length > 0) {
+      // Give a short delay then end the race
+      setTimeout(() => {
+        const currentRoom = activeRooms.get(roomId);
+        if (!currentRoom || currentRoom.status === 'finished') return;
         endRaceEarly(roomId, 'opponent_left');
-      }
-    }, 5000); // 5 second grace period
+      }, 2000);
+    }
+    // If no one has finished yet, let the remaining player continue typing
+    // Don't auto-declare winner - they should complete the race naturally
+    // Just notify them that opponent left
   } else if (connectedPlayers.length === 0) {
     // All players disconnected, end the race
     endRaceEarly(roomId, 'all_players_disconnected');
@@ -395,17 +388,31 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Helper function to find a countdown room with space
+  const findAvailableCountdownRoom = () => {
+    for (const [roomId, room] of activeRooms.entries()) {
+      if (room.status === 'countdown' && room.players.length < MAX_PLAYERS_PER_ROOM) {
+        return roomId;
+      }
+    }
+    return null;
+  };
+
   // Helper function to create matches
   const createMatches = () => {
-    while (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
+    // Only create one match at a time, starting with minimum players
+    if (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
+      // Check if there's already a countdown room with space
+      const existingRoom = findAvailableCountdownRoom();
+      if (existingRoom) {
+        // Don't create new match, players will join existing countdown
+        return;
+      }
+      
       const roomId = `race_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // Take up to MAX_PLAYERS_PER_ROOM, but prioritize filling room efficiently
-      // If we have 4+, take 4. If 2-3, take all.
-      const playersToMatch = waitingPlayers.length >= MAX_PLAYERS_PER_ROOM 
-        ? MAX_PLAYERS_PER_ROOM 
-        : waitingPlayers.length;
-      
+      // Start with just 2 players, others can join during countdown
+      const playersToMatch = MIN_PLAYERS_TO_START;
       const players = waitingPlayers.splice(0, playersToMatch);
 
       // Verify all players are still connected
@@ -418,21 +425,10 @@ io.on('connection', (socket) => {
             waitingPlayers.unshift(p);
           }
         });
-        continue;
+        return;
       }
       
-      // Enforce MAX_PLAYERS limit strictly
-      const finalPlayers = connectedPlayers.slice(0, MAX_PLAYERS_PER_ROOM);
-      
-      // Put back excess players if any
-      if (connectedPlayers.length > MAX_PLAYERS_PER_ROOM) {
-        const excessPlayers = connectedPlayers.slice(MAX_PLAYERS_PER_ROOM);
-        excessPlayers.forEach(p => {
-          if (!isPlayerInWaitingQueue(p.userId)) {
-            waitingPlayers.unshift(p);
-          }
-        });
-      }
+      const finalPlayers = connectedPlayers;
 
       // Update all matched players status to racing
       finalPlayers.forEach(p => {
@@ -492,7 +488,7 @@ io.on('connection', (socket) => {
         text: raceText
       });
 
-      // Start countdown from 10 seconds
+      // Start countdown from 10 seconds (buffer time for new players to join)
       let countdown = 10;
       const countdownInterval = setInterval(() => {
         const room = activeRooms.get(roomId);
@@ -556,6 +552,91 @@ io.on('connection', (socket) => {
       return;
     }
     
+    // Check if there's a countdown room with space (dynamic join)
+    const availableCountdownRoom = findAvailableCountdownRoom();
+    if (availableCountdownRoom) {
+      const room = activeRooms.get(availableCountdownRoom);
+      
+      // Update user status first
+      if (user) {
+        user.status = 'racing';
+        onlineUsers.set(socket.id, user);
+      }
+      
+      // Add small delay to allow client UI to show waiting screen
+      setTimeout(() => {
+        // Re-check room still exists and has space
+        const currentRoom = activeRooms.get(availableCountdownRoom);
+        if (!currentRoom || currentRoom.players.length >= MAX_PLAYERS_PER_ROOM) {
+          // Room full or gone, add to waiting queue instead
+          if (user) {
+            user.status = 'waiting';
+            onlineUsers.set(socket.id, user);
+          }
+          
+          waitingPlayers.push({
+            socketId: socket.id,
+            username: userData.username,
+            userId: userData.userId,
+            joinedAt: Date.now()
+          });
+          
+          socket.emit('waitingForPlayers', { 
+            playersWaiting: waitingPlayers.length,
+            position: waitingPlayers.length
+          });
+          return;
+        }
+        
+        // Add player directly to the countdown room
+        const newPlayer = {
+          socketId: socket.id,
+          username: userData.username,
+          userId: userData.userId,
+          progress: 0,
+          wpm: 0,
+          accuracy: 100,
+          finished: false,
+          position: 0,
+          isConnected: true
+        };
+        
+        currentRoom.players.push(newPlayer);
+        activeRooms.set(availableCountdownRoom, currentRoom);
+        
+        // Join the room
+        socket.join(availableCountdownRoom);
+        
+        // Notify the new player
+        socket.emit('raceReady', {
+          roomId: availableCountdownRoom,
+          players: currentRoom.players.map(p => ({ 
+            socketId: p.socketId, 
+            username: p.username,
+            userId: p.userId 
+          })),
+          text: currentRoom.text
+        });
+        
+        // Notify existing players that someone joined
+        socket.to(availableCountdownRoom).emit('playerJoinedCountdown', {
+          username: userData.username,
+          userId: userData.userId,
+          totalPlayers: currentRoom.players.length,
+          players: currentRoom.players.map(p => ({ 
+            socketId: p.socketId, 
+            username: p.username,
+            userId: p.userId 
+          }))
+        });
+        
+        broadcastOnlineStats();
+      }, 500); // 500ms delay for smooth UX
+      
+      return;
+    }
+    
+    // No countdown room available, add to waiting queue
     // Update user status
     if (user) {
       user.status = 'waiting';
@@ -576,49 +657,41 @@ io.on('connection', (socket) => {
 
     broadcastOnlineStats();
 
-    // Matchmaking logic with smart buffering
-    if (waitingPlayers.length >= MAX_PLAYERS_PER_ROOM) {
-      // If we have 4+ players, start immediately
+    // Matchmaking logic - create match when 2+ players waiting
+    if (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
+      // Clear any existing timer and create match
       if (matchmakingTimer) {
         clearTimeout(matchmakingTimer);
         matchmakingTimer = null;
       }
-      createMatches();
-    } else if (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
-      // If we have 2-3 players, wait a bit for a 4th, then start
-      if (!matchmakingTimer) {
-        matchmakingTimer = setTimeout(() => {
-          if (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
-            createMatches();
-          }
-          matchmakingTimer = null;
-        }, MATCHMAKING_BUFFER);
-      }
+      // Small delay to allow client UI to render waiting screen
+      setTimeout(() => {
+        if (waitingPlayers.length >= MIN_PLAYERS_TO_START) {
+          createMatches();
+        }
+      }, 500); // 500ms delay for smooth UX
     }
-    // If only 1 player, wait for more (no timer needed)
+    // If only 1 player, wait for another (no timer needed)
   });
 
   // Reconnect to room
   socket.on('reconnectToRoom', (data) => {
     const { roomId, username, userId } = data;
+    console.log(`[RECONNECT] User ${username} (${userId}) attempting to reconnect to room ${roomId}`);
+    
     const room = activeRooms.get(roomId);
     
     if (!room) {
+      console.log(`[RECONNECT] Room ${roomId} not found`);
       socket.emit('reconnectFailed', { message: 'Race has ended or does not exist' });
       disconnectedPlayers.delete(userId);
       return;
     }
     
     if (room.status === 'finished') {
+      console.log(`[RECONNECT] Room ${roomId} already finished`);
       socket.emit('reconnectFailed', { message: 'Race has already finished' });
       disconnectedPlayers.delete(userId);
-      return;
-    }
-    
-    // Verify this player was actually disconnected
-    const disconnectedData = disconnectedPlayers.get(userId);
-    if (!disconnectedData || disconnectedData.roomId !== roomId) {
-      socket.emit('reconnectFailed', { message: 'No active disconnection record found' });
       return;
     }
     
@@ -626,9 +699,16 @@ io.on('connection', (socket) => {
     const playerIndex = room.players.findIndex(p => p.userId === userId);
     
     if (playerIndex === -1) {
+      console.log(`[RECONNECT] User ${userId} not found in room ${roomId} players`);
       socket.emit('reconnectFailed', { message: 'You are not part of this race' });
       return;
     }
+    
+    // Check if player was disconnected or just refreshed (still has old socketId)
+    const disconnectedData = disconnectedPlayers.get(userId);
+    const isPageRefresh = !disconnectedData;
+    
+    console.log(`[RECONNECT] ${isPageRefresh ? 'Page refresh' : 'Reconnection after disconnect'} detected for user ${userId}`);
     
     // Update player's socket ID and restore state
     room.players[playerIndex].socketId = socket.id;
@@ -645,6 +725,8 @@ io.on('connection', (socket) => {
     
     // Remove from disconnected players
     disconnectedPlayers.delete(userId);
+    
+    console.log(`[RECONNECT] User ${username} successfully reconnected to room ${roomId} in status: ${room.status}`);
     
     // Update online users
     onlineUsers.set(socket.id, {
@@ -670,6 +752,7 @@ io.on('connection', (socket) => {
         wpm: p.wpm,
         accuracy: p.accuracy,
         finished: p.finished,
+        finishTime: p.finishTime,
         isConnected: p.isConnected
       })),
       text: room.text,
@@ -772,6 +855,7 @@ io.on('connection', (socket) => {
     // Check if player finished
     if (progress >= 100 && !room.players[playerIndex].finished) {
       room.players[playerIndex].finished = true;
+      room.players[playerIndex].finishTime = Date.now();
       const finishedCount = room.players.filter(p => p.finished).length;
       room.players[playerIndex].position = finishedCount;
 

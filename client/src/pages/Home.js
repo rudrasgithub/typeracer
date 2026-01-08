@@ -116,19 +116,11 @@ const Home = () => {
         <span className="time-text">{formatTime(currentTime)}</span>
       </div>
 
-      {/* Online Stats Bar - Just counters, no user list */}
+      {/* Online Stats Bar - Only online count */}
       <div className="online-stats-bar">
         <div className="online-stat">
           <span className="online-dot"></span>
           <span>{onlineStats.onlineCount} Online</span>
-        </div>
-        <div className="online-stat racing">
-          <span className="racing-icon">🏎️</span>
-          <span>{onlineStats.racingCount} Racing</span>
-        </div>
-        <div className="online-stat waiting">
-          <span className="waiting-icon">⏳</span>
-          <span>{onlineStats.waitingCount} Waiting</span>
         </div>
       </div>
 

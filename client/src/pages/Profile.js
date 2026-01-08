@@ -14,6 +14,8 @@ const Profile = () => {
   const { history } = useSelector((state) => state.race);
   const [profileUser, setProfileUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const racesPerPage = 10;
 
   const isOwnProfile = currentUser && currentUser.username === username;
 
@@ -73,6 +75,9 @@ const Profile = () => {
           </div>
           <div className="profile-info">
             <h1 className="profile-username">{profileUser.username}</h1>
+            {profileUser.email && (
+              <p className="profile-email">{profileUser.email}</p>
+            )}
             <div className="experience-bar">
               <div className="xp-label">
                 {xpProgress} / 100 XP to Level {profileUser.level + 1}
@@ -140,7 +145,9 @@ const Profile = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {history.slice(0, 10).map((race) => {
+                    {history
+                      .slice((currentPage - 1) * racesPerPage, currentPage * racesPerPage)
+                      .map((race) => {
                       const raceDate = new Date(race.date);
                       const dateStr = raceDate.toLocaleDateString('en-US', {
                         month: 'short',
@@ -178,6 +185,29 @@ const Profile = () => {
                   </tbody>
                 </table>
               </div>
+              
+              {/* Pagination Controls */}
+              {history.length > racesPerPage && (
+                <div className="pagination">
+                  <button 
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ← Previous
+                  </button>
+                  <span className="pagination-info">
+                    Page {currentPage} of {Math.ceil(history.length / racesPerPage)}
+                  </span>
+                  <button 
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(history.length / racesPerPage)))}
+                    disabled={currentPage >= Math.ceil(history.length / racesPerPage)}
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

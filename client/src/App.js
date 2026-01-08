@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { Toaster } from 'react-hot-toast';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Provider, useSelector } from 'react-redux';
+import toast, { Toaster } from 'react-hot-toast';
 import store from './store/store';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -60,8 +60,24 @@ function App() {
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
+  const { user } = useSelector((state) => state.auth);
   const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" />;
+  const location = useLocation();
+  
+  useEffect(() => {
+    if (!token && !user) {
+      toast.error('Please sign in to access this page', {
+        id: 'auth-required', // Prevent duplicate toasts
+        icon: '🔒',
+      });
+    }
+  }, [token, user]);
+  
+  if (!token && !user) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+  
+  return children;
 };
 
 export default App;

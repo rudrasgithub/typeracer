@@ -306,6 +306,12 @@ class SocketService {
     }
   }
 
+  onPlayerJoinedCountdown(callback) {
+    if (this.socket) {
+      this.socket.on('playerJoinedCountdown', callback);
+    }
+  }
+
   // Remove listeners
   off(event) {
     if (this.socket) {
