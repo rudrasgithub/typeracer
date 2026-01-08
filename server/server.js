@@ -24,6 +24,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://typeracer-blond.vercel.app',
+  'https://typeracer-server-2622.onrender.com',
   process.env.CLIENT_URL
 ].filter(Boolean);
 
