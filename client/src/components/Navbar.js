@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../store/slices/authSlice';
+import socketService from '../services/socketService';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -10,6 +11,8 @@ const Navbar = () => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
 
   const handleLogout = () => {
+    // Notify socket server of logout
+    socketService.logoutUser();
     dispatch(logout());
     navigate('/login');
   };

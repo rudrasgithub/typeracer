@@ -63,6 +63,11 @@ app.use('/api/race', raceRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/user', userRoutes);
 
+// Health check endpoint for Render
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.get('/', (req, res) => {
   res.json({ message: 'TypeRacer API Server' });
 });
@@ -298,6 +303,17 @@ io.on('connection', (socket) => {
     }
     
     broadcastOnlineStats();
+  });
+
+  // Handle user logout - remove from online users immediately
+  socket.on('userLogout', () => {
+    const user = onlineUsers.get(socket.id);
+    if (user) {
+      console.log(`[LOGOUT] User ${user.username} logged out`);
+      onlineUsers.delete(socket.id);
+      removeFromWaitingQueue(socket.id);
+      broadcastOnlineStats();
+    }
   });
 
   // Get online stats

@@ -13,13 +13,14 @@ class SocketService {
   connect() {
     if (!this.socket) {
       this.socket = io(SOCKET_URL, {
-        transports: ['websocket'],
+        transports: ['websocket', 'polling'], // Add polling as fallback
         autoConnect: true,
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        timeout: 20000
+        timeout: 20000,
+        upgrade: true // Try to upgrade from polling to websocket
       });
 
       this.socket.on('connect', () => {
@@ -85,6 +86,13 @@ class SocketService {
   registerUser(userData) {
     if (this.socket) {
       this.socket.emit('registerUser', userData);
+    }
+  }
+
+  // Notify server when user logs out
+  logoutUser() {
+    if (this.socket) {
+      this.socket.emit('userLogout');
     }
   }
 

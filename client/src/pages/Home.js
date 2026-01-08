@@ -43,6 +43,24 @@ const Home = () => {
   useEffect(() => {
     socketService.connect();
 
+    // Listen for online stats updates
+    socketService.onOnlineStats((stats) => {
+      setOnlineStats(stats);
+    });
+
+    // Listen for global chat messages
+    socketService.onGlobalChatMessage((message) => {
+      setChatMessages(prev => [...prev.slice(-49), message]); // Keep last 50 messages
+    });
+
+    return () => {
+      socketService.off('onlineStats');
+      socketService.off('globalChatMessage');
+    };
+  }, []);
+
+  // Register user when auth state changes (login/logout)
+  useEffect(() => {
     // Register user (authenticated or anonymous visitor)
     if (isAuthenticated && user) {
       socketService.registerUser({
@@ -58,23 +76,15 @@ const Home = () => {
       });
     }
 
-    // Get initial online stats
+    // Get stats immediately after registration
     socketService.getOnlineStats();
+  }, [isAuthenticated, user]);
 
-    // Listen for online stats updates
-    socketService.onOnlineStats((stats) => {
-      setOnlineStats(stats);
-    });
-
-    // Listen for global chat messages
-    socketService.onGlobalChatMessage((message) => {
-      setChatMessages(prev => [...prev.slice(-49), message]); // Keep last 50 messages
-    });
-
-    // Poll for stats every 3 seconds for consistent updates
+  // Poll for stats more frequently for real-time feel
+  useEffect(() => {
     const statsInterval = setInterval(() => {
       socketService.getOnlineStats();
-    }, 3000);
+    }, 2000); // Poll every 2 seconds
 
     return () => {
       clearInterval(statsInterval);
