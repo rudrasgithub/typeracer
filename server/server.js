@@ -66,7 +66,16 @@ app.use('/api/user', userRoutes);
 
 // Health check endpoint for Render
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    env: {
+      MONGODB_URI: process.env.MONGODB_URI ? 'set' : 'NOT SET',
+      JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'NOT SET',
+      CLIENT_URL: process.env.CLIENT_URL ? 'set' : 'NOT SET',
+      NODE_ENV: process.env.NODE_ENV || 'NOT SET'
+    }
+  });
 });
 
 app.get('/', (req, res) => {
