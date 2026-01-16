@@ -4,6 +4,13 @@
     {
       "src": "server/server.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
     }
   ],
   "routes": [
@@ -16,8 +23,16 @@
       "dest": "server/server.js"
     },
     {
+      "src": "/assets/(.*)",
+      "dest": "/client/dist/assets/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|svg|gif))",
+      "dest": "/client/dist/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "server/server.js"
+      "dest": "/client/dist/index.html"
     }
   ]
 }
