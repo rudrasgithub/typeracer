@@ -130,9 +130,7 @@ const Race = () => {
 
 
 
-    socketService.onWaitingForPlayers((data) => {
-      // Players in queue
-    });
+
 
     socketService.onRaceReady((data) => {
       // Clear waiting timeout when match is found
@@ -196,9 +194,7 @@ const Race = () => {
       dispatch(updatePlayers(data.players));
     });
 
-    socketService.onPlayerFinished((data) => {
-      // Player finished - could show notification
-    });
+
 
     socketService.onRaceFinished((data) => {
       dispatch(finishRace(data.results));
@@ -276,7 +272,7 @@ const Race = () => {
     });
 
     socketService.onReconnectSuccess((data) => {
-      console.log('Reconnection successful:', data);
+
       
       // Restore race state from server
       dispatch(setRaceReady({
@@ -362,7 +358,6 @@ const Race = () => {
     });
 
     socketService.onReconnectFailed((data) => {
-      console.log('Reconnection failed:', data.message);
       localStorage.removeItem('activeRaceRoom');
       dispatch(resetRace());
       // Show message to user
@@ -381,9 +376,7 @@ const Race = () => {
       });
     });
 
-    socketService.onAlreadyWaiting((data) => {
-      // Already in queue, do nothing
-    });
+
 
     socketService.onSessionInvalidated((data) => {
       // Logged in from another location
@@ -417,12 +410,12 @@ const Race = () => {
         socketService.leaveWaitingRoom();
       }
 
-      socketService.off('waitingForPlayers');
+
       socketService.off('raceReady');
       socketService.off('countdown');
       socketService.off('raceStart');
       socketService.off('progressUpdate');
-      socketService.off('playerFinished');
+
       socketService.off('raceFinished');
       socketService.off('playerDisconnected');
       socketService.off('playerReconnected');
@@ -432,7 +425,7 @@ const Race = () => {
       socketService.off('playerJoinedCountdown');
       socketService.off('raceChatMessage');
       socketService.off('alreadyInRace');
-      socketService.off('alreadyWaiting');
+
       socketService.off('sessionInvalidated');
       socketService.off('pendingRaceReconnect');
       socketService.off('raceLeft');

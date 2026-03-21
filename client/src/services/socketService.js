@@ -134,11 +134,7 @@ class SocketService {
   }
 
   // Event listeners
-  onWaitingForPlayers(callback) {
-    if (this.socket) {
-      this.socket.on('waitingForPlayers', callback);
-    }
-  }
+
 
   onRaceReady(callback) {
     if (this.socket) {
@@ -176,11 +172,7 @@ class SocketService {
     }
   }
 
-  onPlayerFinished(callback) {
-    if (this.socket) {
-      this.socket.on('playerFinished', callback);
-    }
-  }
+
 
   onRaceFinished(callback) {
     if (this.socket) {
@@ -231,11 +223,7 @@ class SocketService {
     }
   }
 
-  onAlreadyWaiting(callback) {
-    if (this.socket) {
-      this.socket.on('alreadyWaiting', callback);
-    }
-  }
+
 
   onPlayerRemovedTimeout(callback) {
     if (this.socket) {
