@@ -158,12 +158,10 @@ const Practice = () => {
     
     const typedWords = typedText.split(' ');
     const practiceWords = practiceText.split(' ');
-    let completedWords = 0;
     let completedChars = 0;
 
     for (let i = 0; i < typedWords.length - 1; i++) {
       if (typedWords[i] === practiceWords[i]) {
-        completedWords++;
         completedChars += practiceWords[i].length + 1; // +1 for space
       } else {
         break;

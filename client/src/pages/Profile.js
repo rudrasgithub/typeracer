@@ -60,7 +60,6 @@ const Profile = () => {
     );
   }
 
-  const xpForNextLevel = (profileUser.level) * 100;
   const xpProgress = (profileUser.experience % 100);
 
   return (

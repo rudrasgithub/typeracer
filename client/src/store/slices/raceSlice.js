@@ -148,9 +148,7 @@ export const {
   updateProgress,
   updatePlayers,
   finishRace,
-  resetRace,
-  setError,
-  clearError
+  resetRace
 } = raceSlice.actions;
 
 export default raceSlice.reducer;

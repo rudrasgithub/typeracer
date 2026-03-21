@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import socketService from '../services/socketService';
-import soundService from '../services/soundService';
+
 import {
   setWaiting,
   setRaceReady,
@@ -28,9 +28,7 @@ const Race = () => {
     isWaiting,
     isRacing,
     countdown,
-    userProgress,
-    userWPM,
-    userAccuracy,
+
     startTime,
     raceResults
   } = useSelector((state) => state.race);
@@ -41,7 +39,7 @@ const Race = () => {
   const [hasInputError, setHasInputError] = useState(false);
   const [totalCompletedWords, setTotalCompletedWords] = useState(0);
   const [totalTypedPosition, setTotalTypedPosition] = useState(0);
-  const [totalCorrectChars, setTotalCorrectChars] = useState(0);
+
   const [raceCompletionTime, setRaceCompletionTime] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [userFinished, setUserFinished] = useState(false);
@@ -50,11 +48,7 @@ const Race = () => {
   const [chatInput, setChatInput] = useState('');
   const [showChat, setShowChat] = useState(false);
   const [waitingTimer, setWaitingTimer] = useState(30);
-  const [onlineStats, setOnlineStats] = useState({
-    onlineCount: 0,
-    racingCount: 0,
-    waitingCount: 0
-  });
+
   const [disconnectedPlayer, setDisconnectedPlayer] = useState(null);
   const [reconnectedPlayer, setReconnectedPlayer] = useState(null);
   const [playerLeftInfo, setPlayerLeftInfo] = useState(null);
@@ -107,7 +101,7 @@ const Race = () => {
   };
 
   useEffect(() => {
-    const socket = socketService.connect();
+    socketService.connect();
 
     // Register user first if logged in
     if (user) {
@@ -134,15 +128,7 @@ const Race = () => {
       }
     }, 100); // 100ms delay to ensure registration is sent
 
-    // Get online stats periodically
-    socketService.getOnlineStats();
-    const statsInterval = setInterval(() => {
-      socketService.getOnlineStats();
-    }, 3000);
 
-    socketService.onOnlineStats((stats) => {
-      setOnlineStats(stats);
-    });
 
     socketService.onWaitingForPlayers((data) => {
       // Players in queue
@@ -426,11 +412,11 @@ const Race = () => {
 
     return () => {
       clearTimeout(reconnectTimeout);
-      clearInterval(statsInterval);
+
       if (isWaiting || isRacing) {
         socketService.leaveWaitingRoom();
       }
-      socketService.off('onlineStats');
+
       socketService.off('waitingForPlayers');
       socketService.off('raceReady');
       socketService.off('countdown');
@@ -525,8 +511,6 @@ const Race = () => {
       // Track errors - if typed char doesn't match expected
       if (newChar !== expectedChar) {
         setErrorCount(prev => prev + 1);
-      } else {
-        setTotalCorrectChars(prev => prev + 1);
       }
     }
     
@@ -633,11 +617,11 @@ const Race = () => {
     // Progress is calculated only based on completed words (not partial characters)
     // This keeps progress stable and only updates on word completion
     
-    const progress = Math.min((completedChars / normalizedRaceText.length) * 100, 100);
+    const progress = Math.min((totalTypedPosition / normalizedRaceText.length) * 100, 100);
     
     // Standard WPM calculation
     const timeElapsedMinutes = (Date.now() - startTime) / 1000 / 60;
-    const grossWPM = timeElapsedMinutes > 0 ? Math.round((completedChars / 5) / timeElapsedMinutes) : 0;
+    const grossWPM = timeElapsedMinutes > 0 ? Math.round((totalTypedPosition / 5) / timeElapsedMinutes) : 0;
     const wpm = Math.max(0, grossWPM);
     
     // Accuracy = (Total keystrokes - Errors) / Total keystrokes * 100
@@ -674,7 +658,7 @@ const Race = () => {
     setHasInputError(false);
     setTotalCompletedWords(0);
     setTotalTypedPosition(0);
-    setTotalCorrectChars(0);
+
     setRaceCompletionTime(0);
     setUserFinished(false);
     setChatMessages([]);
@@ -704,7 +688,7 @@ const Race = () => {
       setHasInputError(false);
       setTotalCompletedWords(0);
       setTotalTypedPosition(0);
-      setTotalCorrectChars(0);
+  
       setRaceCompletionTime(0);
       setUserFinished(false);
       setChatMessages([]);

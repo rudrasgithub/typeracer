@@ -63,21 +63,7 @@ export const getWinsLeaderboard = createAsyncThunk(
   }
 );
 
-// Get user rank
-export const getUserRank = createAsyncThunk(
-  'leaderboard/getUserRank',
-  async (_, { rejectWithValue, getState }) => {
-    try {
-      const { token } = getState().auth;
-      const response = await axios.get(`${API_URL}/api/leaderboard/rank/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data.message || 'Failed to fetch rank');
-    }
-  }
-);
+
 
 const leaderboardSlice = createSlice({
   name: 'leaderboard',
@@ -126,12 +112,9 @@ const leaderboardSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // User rank
-      .addCase(getUserRank.fulfilled, (state, action) => {
-        state.userRank = action.payload.rank;
-      });
+
   }
 });
 
-export const { clearError } = leaderboardSlice.actions;
+
 export default leaderboardSlice.reducer;

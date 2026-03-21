@@ -48,22 +48,7 @@ export const login = createAsyncThunk(
   }
 );
 
-// Get current user
-export const getCurrentUser = createAsyncThunk(
-  'auth/getCurrentUser',
-  async (_, { rejectWithValue, getState }) => {
-    try {
-      const { token } = getState().auth;
-      const response = await axios.get(`${API_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response.data.message || 'Failed to fetch user');
-    }
-  }
-);
+
 
 // Logout user
 export const logout = createAsyncThunk('auth/logout', async () => {
@@ -116,10 +101,7 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Get Current User
-      .addCase(getCurrentUser.fulfilled, (state, action) => {
-        state.user = action.payload.user;
-      })
+
       // Logout
       .addCase(logout.fulfilled, (state) => {
         state.user = null;

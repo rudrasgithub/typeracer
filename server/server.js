@@ -865,7 +865,7 @@ io.on('connection', (socket) => {
 
   // Update typing progress
   socket.on('updateProgress', (data) => {
-    const { roomId, progress, wpm, accuracy, typed } = data;
+    const { roomId, progress, wpm, accuracy } = data;
     const room = activeRooms.get(roomId);
 
     if (!room || room.status !== 'racing') return;
@@ -1008,7 +1008,7 @@ io.on('connection', (socket) => {
               const pIndex = currentRoom.players.findIndex(p => p.userId === player.userId);
               if (pIndex !== -1 && !isSocketConnected(currentRoom.players[pIndex].socketId)) {
                 // Player didn't reconnect within grace period, remove them
-                const removedPlayer = currentRoom.players[pIndex];
+
                 currentRoom.players.splice(pIndex, 1);
                 disconnectedPlayers.delete(player.userId);
                 

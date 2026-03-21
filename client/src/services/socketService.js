@@ -13,73 +13,33 @@ class SocketService {
   connect() {
     if (!this.socket) {
       this.socket = io(SOCKET_URL, {
-        transports: ['websocket', 'polling'], // Add polling as fallback
+        transports: ['websocket', 'polling'],
         autoConnect: true,
         reconnection: true,
         reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         timeout: 20000,
-        upgrade: true // Try to upgrade from polling to websocket
+        upgrade: true
       });
 
       this.socket.on('connect', () => {
         this.reconnectAttempts = 0;
-        // Silently connected
       });
 
       this.socket.on('disconnect', (reason) => {
-        // Handle different disconnect reasons
         if (reason === 'io server disconnect') {
-          // Server initiated disconnect, try to reconnect
           if (!this.isIntentionalDisconnect) {
             this.socket.connect();
           }
         }
       });
 
-      this.socket.on('connect_error', (error) => {
+      this.socket.on('connect_error', () => {
         this.reconnectAttempts++;
-        // Connection error - silently handle
-      });
-
-      this.socket.on('reconnect', (attemptNumber) => {
-        // Reconnected after disconnect
-      });
-
-      this.socket.on('reconnect_failed', () => {
-        // All reconnection attempts failed
       });
     }
     return this.socket;
-  }
-
-  disconnect() {
-    if (this.socket) {
-      this.isIntentionalDisconnect = true;
-      this.socket.disconnect();
-      this.socket = null;
-      this.isIntentionalDisconnect = false;
-    }
-  }
-
-  // Graceful disconnect - tells server not to wait for reconnection
-  gracefulDisconnect() {
-    if (this.socket) {
-      this.socket.emit('gracefulDisconnect');
-      this.isIntentionalDisconnect = true;
-      this.socket.disconnect();
-      this.socket = null;
-      this.isIntentionalDisconnect = false;
-    }
-  }
-
-  getSocket() {
-    return this.socket;
-  }
-
-  isConnected() {
-    return this.socket && this.socket.connected;
   }
 
   // Register user when authenticated
@@ -133,31 +93,6 @@ class SocketService {
   onRaceChatMessage(callback) {
     if (this.socket) {
       this.socket.on('raceChatMessage', callback);
-    }
-  }
-
-  // Private chat
-  startPrivateChat(targetUserId) {
-    if (this.socket) {
-      this.socket.emit('startPrivateChat', targetUserId);
-    }
-  }
-
-  sendPrivateChat(targetSocketId, message) {
-    if (this.socket) {
-      this.socket.emit('privateChat', { targetSocketId, message });
-    }
-  }
-
-  onPrivateChatStarted(callback) {
-    if (this.socket) {
-      this.socket.on('privateChatStarted', callback);
-    }
-  }
-
-  onPrivateChatMessage(callback) {
-    if (this.socket) {
-      this.socket.on('privateChatMessage', callback);
     }
   }
 
@@ -277,7 +212,7 @@ class SocketService {
     }
   }
 
-  // New edge case handlers
+  // Edge case handlers
   onSessionInvalidated(callback) {
     if (this.socket) {
       this.socket.on('sessionInvalidated', callback);
@@ -324,13 +259,6 @@ class SocketService {
   off(event) {
     if (this.socket) {
       this.socket.off(event);
-    }
-  }
-
-  // Remove all listeners
-  offAll() {
-    if (this.socket) {
-      this.socket.removeAllListeners();
     }
   }
 }
